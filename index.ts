@@ -1,56 +1,62 @@
-// Import necessary modules and libraries
-import seedrandom from 'seedrandom'; // Used to create a random number generator
+import seedrandom from 'seedrandom'; // Used to create a seeded random number generator
 import 'dotenv/config'; // Used to load environment variables from a .env file
-import fs from 'fs/promises'; // Used for file system operations, like reading and writing files
+import fs from 'fs/promises'; // Used for file system operations like reading and writing files
 
-// This is a function that shuffles the given array using a seed value.
-// The seed ensures that the shuffle can be reproduced if needed.
-function shuffle<T>(array: T[], seed: string): T[] {
-    let result = [...array]; // Creates a copy of the original array
-    let rng = seedrandom(seed); // Initializes a random number generator with the seed
-    // Loop to shuffle the array
-    for (let i = result.length - 1; i > 0; i--) {
-        const j = Math.floor(rng() * (i + 1));
-        [result[i], result[j]] = [result[j], result[i]]; // Swap elements in the array
+// Shuffle function that shuffles an array of objects containing both value and original index
+function shuffle<T>(input: T[], seed: string, firstItemIndex: number): { value: T, index: number }[] {
+    // Convert each element in the input array into an object with value and original index
+    const indexedInput = input.map((item, index) => ({ value: item, index }));
+
+    if(firstItemIndex > (indexedInput.length - 1)) {
+        throw new Error('FIRST_ITEM_INDEX is out of input collection bounds');
     }
-    return result; // Return the shuffled array
+
+    // Remove the selected first item and the owner's item from the input
+    const selectedFirstItem = indexedInput.splice(firstItemIndex, 1)[0];
+    const ownersItem = indexedInput.splice(0, 1)[0]; // Assuming the owner's item is the first in the array
+
+    // Initialize a random number generator with the seed
+    let rng = seedrandom(seed);
+    for (let i = indexedInput.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1)); // Random index from 0 to i
+        [indexedInput[i], indexedInput[j]] = [indexedInput[j], indexedInput[i]]; // Swap elements in the array
+    }
+
+    // Finalize the result with owner's item, selected first item, then append the shuffled result
+    return [ownersItem, selectedFirstItem, ...indexedInput];
 }
 
-// The main function of the script, which runs the overall process.
+// The main function of the script, which runs the overall process
 async function main() {
     try {
-        // Check for required environment variables and throw an error if they are not set.
-        if (!process.env.INPUT_PATH) throw new Error('INPUT_PATH is not set in the environment variables');
-        if (!process.env.SEED) throw new Error('SEED is not set in the environment variables');
-        if (!process.env.OUTPUT_PATH) throw new Error('OUTPUT_PATH is not set in the environment variables');
-
-        // Check if the input file exists and can be accessed
-        try {
-            await fs.access(process.env.INPUT_PATH);
-        } catch (error) {
-            throw new Error('Input file does not exist or cannot be accessed.');
+        // Check for required environment variables and throw an error if they are not set
+        if (!process.env.INPUT_PATH || !process.env.SEED || !process.env.SHUFFLE_OUTPUT_PATH || !process.env.ORDER_OUTPUT_PATH || !process.env.FIRST_ITEM_INDEX) {
+            throw new Error('One or more environment variables are not set.');
         }
 
-        // Read the input file and parse it as JSON.
+        // Read the input file and parse it as JSON
         const inputString = await fs.readFile(process.env.INPUT_PATH, { encoding: 'utf-8' });
         const input = JSON.parse(inputString);
-
-        // Ensure the input file contains a valid array.
         if (!Array.isArray(input)) throw new Error('Input file does not contain a valid array.');
 
-        // Shuffle the input array, excluding the first item.
-        const shuffledInput = input.slice(1,)
-        const result = shuffle(shuffledInput, process.env.SEED);
+        // Parse the first item index as number
+        const firstItemIndex = Number(process.env.FIRST_ITEM_INDEX);
 
-        // Save the shuffled array to the output file.
-        await fs.writeFile(process.env.OUTPUT_PATH, JSON.stringify(result));
-        console.log('Shuffling complete. Output saved to:', process.env.OUTPUT_PATH);
+        // Shuffle the input array and prepare the result
+        const result = shuffle(input, process.env.SEED, firstItemIndex);
+
+        // Save the shuffled array to the output file
+        await fs.writeFile(process.env.SHUFFLE_OUTPUT_PATH, JSON.stringify(result.map(item => item.value)));
+        console.log('Shuffling complete. Output saved to:', process.env.SHUFFLE_OUTPUT_PATH);
+
+        // Extract the order of original indices and write it to a new file
+        const orderOfOriginalIndices = result.map(item => item.index);
+        await fs.writeFile(process.env.ORDER_OUTPUT_PATH, JSON.stringify(orderOfOriginalIndices));
+        console.log('Order of original indices saved to:', process.env.ORDER_OUTPUT_PATH);
 
     } catch (error) {
-        // If any error occurs during the process, print the error message.
-        console.error('Error:', error.message);
+        console.error('Error:', error.message); // Print any errors that occur
     }
 }
 
-// Execute the main function.
-main();
+main(); // Execute the main function
