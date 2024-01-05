@@ -11,9 +11,8 @@ function shuffle<T>(input: T[], seed: string, firstItemIndex: number): { value: 
         throw new Error('FIRST_ITEM_INDEX is out of input collection bounds');
     }
 
-    // Remove the selected first item and the owner's item from the input
+    // Remove the selected first item from the input
     const selectedFirstItem = indexedInput.splice(firstItemIndex, 1)[0];
-    const ownersItem = indexedInput.splice(0, 1)[0]; // Assuming the owner's item is the first in the array
 
     // Initialize a random number generator with the seed
     let rng = seedrandom(seed);
@@ -22,8 +21,8 @@ function shuffle<T>(input: T[], seed: string, firstItemIndex: number): { value: 
         [indexedInput[i], indexedInput[j]] = [indexedInput[j], indexedInput[i]]; // Swap elements in the array
     }
 
-    // Finalize the result with owner's item, selected first item, then append the shuffled result
-    return [ownersItem, selectedFirstItem, ...indexedInput];
+    // Finalize the result with selected first item, then append the shuffled result
+    return [selectedFirstItem, ...indexedInput];
 }
 
 // The main function of the script, which runs the overall process

@@ -1,5 +1,4 @@
 .env
 node_modules
-input.json
 shuffle-output.json
 order-output.json
